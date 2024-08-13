@@ -1,0 +1,1644 @@
+<!DOCTYPE html>
+<html>
+	<head>
+	<meta name="format-detection" content="telephone=no">
+<meta name="msapplication-tap-highlight" content="no">
+<meta name="viewport" content="initial-scale=1, width=device-width, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="./range.css">
+<script src="cordova.js"></script>
+<script>
+	document.addEventListener('deviceready', onDeviceReady, false);
+	function onDeviceReady() {
+		console.log('Running cordova-' + cordova.platformId + '@' + cordova.version);
+		var script = document.createElement('script');
+		script.type ='text/javascript';
+		script.src ='./_hyperscript.js';
+		document.head.insertBefore(script,document.head.firstChild);
+	}
+	function get_item(key)
+	{
+		return new Promise(function(res,rej) {
+			NativeStorage.getItem(key,function(suc){
+				res(suc);
+			},
+				function(error)
+				{
+					rej(error);
+				}
+				);
+		});
+	}
+	function keys()
+	{
+		return new Promise(function(res,rej) {
+			NativeStorage.keys(function(suc){
+				res(suc);
+			},
+				function(error)
+				{
+					rej(error);
+				}
+				);
+		});
+	}
+
+</script>
+		<title>Frequency generator</title>
+		<script src="./audiotowav.js"></script>
+
+		<div id=hidden style="display: none;">
+			<table id=t-save>
+				<tbody _="
+					on click
+						log 'clicked'
+						set name to beep! my querySelector('.name-cell')'s innerHTML
+						set key to 'fgsave@@@@' + name
+						set json to get_item(key)
+
+						log json
+						set object to JSON.parse(json)
+						log object
+						set $state.input_values to object.initial_values
+						set $state.initial_values to object.initial_values
+						set $state.ramps to object.ramps
+						updateall()
+						set #ramps.innerHTML to ''
+						if object.ramps.length != 0
+							for ramp in object.ramps 
+								set sec to ramp.time mod 60
+								set min to Math.floor(ramp.time/60)
+								set lastramp to appendramp(ramp.diff,ramp.base,sec,min,ramp.id)
+								hide lastramp.querySelector('.rampset')
+							end
+
+							remove @disabled from #export-button
+						else 
+							hide #ramp-label
+							add @disabled to #export-button
+						end
+
+
+					">
+					<tr>
+						<td colspan=4>
+							<i class=name-cell>name</i>
+						</td>
+						<td>
+							<button _="
+								on mousedown
+									toggle .active on me
+									event.preventDefault()
+									event.stopImmediatePropagation()
+									halt bubbling
+								on mousedup 
+									toggle .active on me
+									event.preventDefault()
+									event.stopImmediatePropagation()
+									halt bubbling
+								on click
+									set name to (previous <*.name-cell/>)'s innerHTML
+									log name
+									set key to 'fgsave@@@@' + name
+									NativeStorage.remove(key, console.log,console.log)
+
+									if #save-table's children.length==1
+										hide #saved-confs-label
+									end
+									remove closest <tbody/>
+									log event
+									event.preventDefault()
+									event.stopImmediatePropagation()
+									halt bubbling
+								">
+								<img class="icon svgswap" src="./remove.svg">
+							</button>
+						</td>
+					</tr>
+					<tr>
+						<td colspan=6>
+							<p class=desc-cell _="
+								on mousedown
+									event.stopPropagation()
+									event.stopImmediatePropagation()
+								on mouseup
+									event.stopPropagation()
+									event.stopImmediatePropagation()
+								on click
+									event.stopPropagation()
+									event.stopImmediatePropagation()
+								on focus
+									log 'focus'
+									set @data-pvalue to my innerHTML
+								on blur
+									log 'blur'
+									if @data-pvalue != my innerHTML
+									log 'changeblur'
+										set name to (previous <*.name-cell/>)'s innerHTML
+										set key to 'fgsave@@@@' + name
+										set json to get_item(key)
+										set object to JSON.parse(json)
+										set object's desc to my innerHTML
+										set json to JSON.stringify(object)
+										NativeStorage.setItem(key,json,console.log,console.log)
+									end
+										
+							"  contenteditable="true" >desc</p>
+						</td>
+					</tr>
+					<tr>
+						<th colspan=3>Frequency diffrence</th>
+						<th>Left</th>
+						<th>Right</th>
+					</tr>
+					<tr>
+						<td colspan=3 >
+							<h3 class=diff-cell>
+							13
+							</h3>
+						</td>
+						<td class=left-wave-cell>
+							107
+						</td>
+						<td class=right-wave-cell>
+							93
+						</td>
+					</tr>
+				</tbody>
+			</table>
+
+
+
+			<table>
+			<tbody id=t-audio>
+
+				<tr>
+					<td>
+						<audio controls></audio>
+					</td>
+					<td>
+						<button class=iconbutton _="
+							on click 
+								set audio_blob to $state.audio_blobs[((previous <audio/>)'s @id)]
+								if $state.cordova_platform === 'android'
+									android_download(audio_blob.blob,audio_blob.filename) 
+								else
+									download(audio_blob.uri,audio_blob.filename) 
+								end
+							end
+							">
+							<img class="icon svgswap" src="./save.svg"/>
+						</button> </td>
+
+				</tr> 
+
+			</tbody>
+			</table>
+
+
+
+
+
+			<div id=t-ramp >
+				<li id=0 >
+					<span class=nowarp>
+						<input _="install inputlimits" min=0 class="unit-input ramptm" value=0 type=number>
+						<span class=unit>m</span>
+					</span>
+				<span class=nowarp>
+					<input _="install inputlimits" min=0 class="unit-input rampts" value=0 type=number>
+					<span class=unit>s</span>
+				</span>
+				<span class=nowarp>
+					<span class=nowarp>
+						<label>Diffrence:</label>
+						<span class=nowarp>
+							<input _="install inputlimits"
+							       min=0 class="unit-input rampfd" value=0 type=number>
+							<span class=unit>Hz</span>
+						</span>
+					</span>
+				</span>
+				<span class=nowarp>
+					<span class=nowarp>
+						<label>Base frequency:<label>
+								<span class=nowarp>
+									<input _="install inputlimits"
+									       min=0 class="unit-input rampfb" value=0 type=number>
+									<span class=unit>Hz</span>
+								</span>
+					</span>
+				</span>
+				<span class=nowarp>
+					<button _="
+					on click 
+						set id to (closest parent <li/>)'s @id 
+						js($state, id)
+							$state.ramps = $state.ramps.filter((ramp) => ramp.id !== id)
+						end 
+						if $state's ramps.length == 0
+							add @disabled to #export-button
+						end
+						if #ramps.children's length == 1
+							hide #ramp-label
+						end
+						remove closest parent <li/>
+					end
+					">remove</button>
+					<button class=rampset _="
+					on change from previous .rampfb or change from previous .rampfd or change from previous .ramptm or  change from previous .rampts 
+						show me 
+					on click 
+						set id to (closest parent <li/>)'s @id 
+						set found to false
+
+						set rampsec to (previous .rampts)'s value as Number
+						set rampmin to (previous .ramptm)'s value as Number
+						set rampt to (rampmin*60) + rampsec
+
+						for ramp in $state.ramps
+							if ramp.id === id
+								set ramp.time to rampt
+								set ramp.diff to (previous .rampfd)'s value as Number
+								set ramp.base to (previous .rampfb)'s value as Number
+								set found to true
+							end
+						end
+
+						if not found
+						then 
+							append {
+							id:id,
+							time: rampt,
+							diff: (previous .rampfd)'s value as Number,
+							base: (previous .rampfb)'s value as Number
+							} to $state.ramps
+						end
+
+						remove @disabled from #export-button
+						hide me
+					">set</button>
+					</span>
+				</li>
+
+			</div>
+
+
+
+		</div>
+	</head>
+
+	<style>
+html {
+  box-sizing: border-box;
+}
+*, *:before, *:after {
+  box-sizing: inherit;
+}
+:root {
+			--light-blue: #637297;
+			--dark-blue: #dde9ec;
+			--red: #ff7549;
+			--gold: #dde9ec;
+			--very-dark-gray: #1d2023;
+			--dark-gray: #07223e;
+			--brown: #01aff1;
+			--dark-brown: #0087cf;
+			--gray:gray;
+			--beige: #fcfcff;
+			--track-border-radius: 0.5rem;
+			--track-color: #dde9ec; 
+			--track-progress-color: #637297;
+			--track-height: 0.7rem;
+			--track-width: 25rem;
+			--thumb-border-radius: 0.5rem;
+			--thumb-color: var(--brown);
+			--thumb-height: 2rem;
+			--thumb-width: 1rem;
+			--toggledot-inactive-color:var(--dark-brown);
+			--toggledot-active-color:var(--brown);
+			--toggledot-slider-active-color:var(--light-blue);
+			--toggledot-slider-inactive-color:var(--dark-blue);
+			--slider-tarck-color:var(--gold);
+			--slider-tarck-hover-color:var(--gold);
+			--slider-tarck-active-color:var(--gold);
+			--slider-thumb-color:var(--brown);
+			--slider-thumb-hover-color:#7a3b2ee0;
+			--slider-thumb-active-color:#7a3b2ed0;
+			--slider-width:12px;
+			--default-transition:150ms;
+			--round:10000000000px;
+			--inputh: clamp( 30px, calc( var(--a) * 26px) , 2.3vh);
+			--fnt-siz:clamp( 1em, calc( var(--a) * .7rem) , 3em);
+			--icon-color: var(--beige);
+			--bg-color: var(--beige);
+			--fg-color: var(--dark-gray);
+			--disabled-button-icon-color:var(--gray);
+			--disabled-button-bg-color:var(--dark-gray);
+			--disabled-button-shadow-color:var(--very-dark-gray);
+			--button-bg-color:var(--brown);
+			--button-fg-color:var(--beige);
+			--button-shadow-color:var(--dark-brown);
+			--input-bg-color:var(--gold);
+			--input-fg-color:var(--dark-gray);
+			--record-red:var(--red);
+			--nav-fg-color:var(--beige);
+			--nav-bg-color:var(--dark-gray);
+			--card-bg: #e1e4fa;
+			--card-shadow: #bdcbcf;
+		}
+		.pagetitle {
+			display:inline-block;
+		}
+
+		* {
+			scrollbar-width: var(--slider-width);
+			scrollbar-color: var(--slider-thumb-color) var(--slider-tarck-color);
+		}
+
+		.toggle {
+			display:inline-block;
+			height:var(--inputh);
+			aspect-ratio:2;
+			border-radius: var(--round);
+			overflow:hidden;
+
+		}
+		.toggledot:before{
+			content:'';
+			display:inline-block;
+			height:var(--inputh);
+			aspect-ratio:2;
+			background-color:var(--toggledot-slider-active-color);
+			border-radius: var(--round);
+			position:relative;
+			left:0;
+			transition: all ;
+			transition-duration:var(--default-transition);
+			z-index:-1;
+		}
+		.toggledot:after{
+			content:'';
+			display:inline-block;
+			height:var(--inputh);
+			aspect-ratio:2;
+			background-color:var(--toggledot-slider-inactive-color);
+			border-radius: var(--round);
+			position:absolute;
+			top:0;
+			right:0;
+			transition: all ;
+			transition-duration:var(--default-transition);
+			z-index:-2;
+		}
+		.toggledot{
+			display:inline-block;
+			height:var(--inputh);
+			width:var(--inputh);
+			background-color:var(--toggledot-inactive-color);
+			border-radius: var(--round);
+			position:relative;
+			left:0;
+			transition: all ;
+			transition-duration:var(--default-transition);
+		}
+		.toggle > input[type=checkbox]
+		{
+			appearance:none;
+			display:none;
+		}
+		input[type=checkbox]:checked + .toggledot {
+			background-color:var(--toggledot-active-color);
+			left:var(--inputh);
+			transition: all ;
+			transition-duration:var(--default-transition);
+		}
+		.unit{
+			position:relative;
+			left: -4ch
+		}
+		.unit-input{
+			padding-right: 3ch
+		}
+
+		*::-webkit-scrollbar {
+			height:var(--slider-width);
+			width:var(--slider-width);
+		}
+		*::-webkit-scrollbar-track {
+			border-radius: 20px;
+			background-color:var(--slider-track-color);
+		}
+
+		*::-webkit-scrollbar-track:hover {
+			background-color:var(--slider-track-hover-color);
+		}
+
+		*::-webkit-scrollbar-track:active {
+			background-color:var(--slider-track-active-color);
+		}
+
+		*::-webkit-scrollbar-thumb {
+			border-radius: 5px;
+			background-color:var(--slider-thumb-color);
+		}
+
+		*::-webkit-scrollbar-thumb:hover {
+			background-color:var(--slider-thumb-hover-color);
+		}
+
+		*::-webkit-scrollbar-thumb:active {
+			background-color:var(--slider-thumb-active-color);
+		}
+		.tablec {
+			overflow-x:auto;
+		}
+		button > .icon {
+			width: 100%;
+			height: 100%;
+		}
+		.icon{
+			fill: var(--icon-color);
+		}
+		button > .icon symbol {
+			width: 100%;
+			height: 100%;
+		}
+
+		.iconbutton {
+			aspect-ratio:3;
+		}
+
+		html{
+			touch-action: manipulation;
+		}
+		#save-table{
+			overflow-x:auto;
+		}
+		.left-wave-cell {
+			text-align:left;
+		}
+		.right-wave-cell {
+			text-align:right;
+		}
+		.diff-cell{
+			text-align:center;
+		}
+		body{
+			font-size:var(--fnt-siz); 
+			margin: 1em;
+			margin-top: 0em;
+			background-color: var(--bg-color);
+			color: var(--fg-color);
+		}
+		label {
+			font-size: inherit;
+		}
+		.freqrange
+		{
+			margin: var(--inputh) 0em ;
+		}
+
+		button:disabled > .icon{
+			fill:var(--disabled-button-icon-color);
+		}
+
+		button:disabled{
+			background-color: var(--disabled-button-bg-color);
+			box-shadow: 0px 5px 0px var(--disabled-button-shadow-color);
+			transition: all  ;
+			transition-duration:var(--default-transition);
+		}
+
+		button {
+			user-select:none;
+			font-size: inherit;
+			height: var(--inputh);
+			border-radius: var(--round);
+			border:none;
+			margin: 1em .5em;
+			padding: 0em 1em;
+			box-shadow: 0px 5px 0px var(--button-shadow-color);
+			position: relative;
+			background-color: var(--button-bg-color);
+			color: var(--button-fg-color);
+			top: 0px;
+			transition: all  ;
+			transition-duration:var(--default-transition);
+		}
+		audio {
+			margin: 1em .5em;
+		}
+		.audio{
+			display:relative;
+		}
+
+		button:enabled:active, button:enabled.active{
+			box-shadow: 0px 0px 0px var(--button-shadow-color);
+			top: 5px;
+			transition: all ;
+			transition-duration:var(--default-transition);
+		}
+		.increments {
+			padding: none;
+			display: inline-block;
+			white-space:nowrap;
+		}
+		.nowarp{
+			display: inline-block;
+			white-space:nowrap;
+		}
+		.increments > button {
+			aspect-ratio:1;
+		}
+		input{
+			width: 14ch;
+			font-size: calc( var(--fnt-siz) );
+			height: var(--inputh);
+			font-size: inherit;
+			background: var(--input-bg-color);
+			color:var(--input-fg-color);
+			border-radius: var(--round);
+			border:none;
+			padding: 0em 0.5em;
+			margin: 1em .5em;
+		}
+		#diff-nav-input {
+			color:var(--input-fg-color);
+		}
+		#save-table > tbody:active{
+			box-shadow: 0px 0px 0px var(--card-shadow);
+			top:5px;
+			transition:var(--default-transition);
+		}
+		#save-table > tbody{
+			box-shadow: 0px 5px 0px var(--card-shadow);
+			top:0;
+			position:relative;
+			display:block;
+			background: var(--card-bg);
+			border-radius:.5em;
+			margin:1em .5em;
+			transition:var(--default-transition);
+		}
+		#save-table th,#save-table td
+		{
+			padding: 0em 1em;
+		}
+		input[type=range]{
+			margin-top: calc( var(--inputh)  ) ;
+			margin-bottom: calc( var(--inputh)) ;
+			width: 100%;
+		}
+		input[type=number]{
+			width: 10ch;
+			margin: 1em .5em;
+			padding: none;
+			-moz-appearance: textfield;
+			text-align: center;
+		}
+		#savename { float:right;}
+
+		input[type=number]::-webkit-outer-spin-button,
+		input[type=number]::-webkit-inner-spin-button
+		{
+			-webkit-appearance:none;
+			margin:0;
+		}
+		.resume {
+			display: none;
+		}
+		*[data-icon=resume] .resume {
+			display: initial;
+		}
+		.pause {
+			display: none;
+		}
+		*[data-icon=pause] .pause {
+			display: initial;
+		}
+		.play {
+			display: none;
+		}
+		*[data-icon=play] .play {
+			display: initial;
+		}
+		.recordicon{
+			fill:var(--record-red);
+		}
+		.stoprecicon{
+			fill:var(--record-red);
+		}
+		.stoprec {
+			display: none;
+		}
+		*[data-icon=stoprec] .stoprec {
+			display: initial;
+		}
+		.record {
+			display: none;
+		}
+		*[data-icon=record] .record {
+			display: initial;
+		}
+		nav * {
+			font-size:.9rem;
+		}
+
+		nav {
+			width: 100%;
+			min-height: calc(var(--inputh) + 2em);
+			top:0;
+			left:0;
+			position:fixed;
+			text-align:center;
+			z-index:10000000000000000000000;
+			border-bottom-left-radius:1em;
+			border-bottom-right-radius:1em;
+			color: var(--nav-fg-color);
+			background-color: var(--nav-bg-color);
+		}
+		#navspacer {
+			height: calc(var(--inputh)*2);
+			width: 100%;
+		}
+		#play-timer {
+			float:left;
+		}
+		#rec-timer {
+			float:right;
+		}
+		nav .navicon {
+			height:var(--inputh);
+			width:var(--inputh);
+			vertical-align:top;
+		}
+		@keyframes fadeinout{
+			from{
+				opacity:0;
+			}
+			50% {
+				opacity:1;
+			}
+			to {
+				opacity:0;
+			}
+		}
+		.blink {
+			animation: fadeinout 1s infinite ;
+
+
+		}
+		nav > span {
+			line-height:var(--inputh) ;
+			margin: 1em .5em;
+		}
+	</style>
+
+	<script> Number.prototype.round=function (places) { return +(Math.round(this + "e+" + places) + "e-" + places); } 
+	async function android_download(blob,name)
+	{
+		try{
+			uri = await cordova.plugins.saveDialog.saveFile(blob, name)
+			console.info("The file has been successfully saved to", uri)
+			alert("File saved")
+		}
+		catch(e)
+		{
+		console.warn("File failed to save",e)
+		alert("File falied to save")
+		}
+	}
+
+	</script>
+	<script type="text/hyperscript">
+		init 
+		set t to (first <:root/>).style.setProperty('--a',window.innerHeight/window.innerWidth)
+		set navheight to window.getComputedStyle(#nav).height
+		set t to (#navspacer).style.setProperty('height', navheight)
+		end
+
+	on resize from window or load from window
+		set t to (first <:root/>).style.setProperty('--a',window.innerHeight/window.innerWidth)
+		set navheight to window.getComputedStyle(#nav).height
+		set t to (#navspacer).style.setProperty('height', navheight)
+	end
+
+	behavior inputlimits
+			on change
+			set min to my min as Number
+			set value to my value as Number
+			if my max === ''
+				set max to Infinity
+			else
+				set max to my max
+			end
+
+				if value < min
+					set my value to min
+						send input to me
+				else 
+					if value > max
+						set my value to max
+						send input to me
+					end
+				end
+			end 
+	end
+		behavior timer
+				init
+				on start
+					if @state === 'resume'
+						set stime to @stime as Number
+						remove @state
+						set stime to stime +  (Date.now() - (@ptime as Number))
+						set @stime to stime
+					then
+					else
+						set stime to Date.now()
+						set @stime to stime
+					end
+
+					repeat until event pause
+						set time to  Date.now()- stime
+						set mil to (time mod 1000)
+						set secs to Math.floor(time / 1000 )
+						set sec to (secs mod 60)
+						set min to Math.floor(secs / 60)
+
+						put padnum(mil,3) into <.mil/> in me
+						put padnum(sec,2) into <.sec/> in me
+						put padnum(min,2) into <.min/> in me
+						wait 10
+					end
+					remove @state 
+
+				end
+				on stop
+				send pause
+					remove @stime 
+					put '000' into <.mil/> in me
+					put '00' into <.sec/> in me
+					put '00' into <.min/> in me
+					
+				end
+				on pause
+						set @ptime to Date.now()
+				end 
+				on resume
+					set @state to 'resume'
+					send start
+				end
+
+		end
+
+		behavior range
+			init
+				me.style.setProperty('--val', my value)  
+				me.style.setProperty('--min', my min)
+				me.style.setProperty('--max', my max)
+			on update or input
+				me.style.setProperty('--val', my value)  
+				me.style.setProperty('--min', my min)
+				me.style.setProperty('--max', my max)
+			on input
+				put my value into (next <input/>)'s value 
+				send input to next <input/> 
+				send change to next <input/> 
+		end
+
+		behavior update(val)
+			on update 
+				put val into my value 
+				put val into (previous <input/>)'s value
+				send update to (previous <input/>)
+			end
+		end
+		behavior increment(up)
+			init
+				if no up
+					set up to ture
+				end
+			end
+
+			on pointerdown queue none
+				set :f to true
+				repeat until event stop
+					if :f is true  
+						wait 0.4s 
+						set :f to false 
+						continue 
+					end
+
+					wait 0.1s 
+					if up
+						call (previous <input/>).stepUp() 
+					else
+						call (previous <input/>).stepDown() 
+					end
+					send input to (previous <input/>)
+				end
+			end 
+			on pointerup queue none
+				send stop to me
+					if up
+						call (previous <input/>).stepUp() 
+					else
+						call (previous <input/>).stepDown() 
+					end
+					send input to (previous <input/>)
+			end
+			on pointerout or pointercancel or pointerleave queue all
+				send stop to me
+			end
+		end
+		</script>
+
+		<script type="text/hyperscript">
+		init
+
+
+			set $astate to{
+				offline_ctx:{},
+				ctx:{},
+				merger:{},
+				recorder:false,
+				recstream:false,
+				right_osc:{},
+				left_osc:{}
+			}
+
+
+
+			set $state to {
+
+				initial_values: {
+					rightf: 395,
+					leftf: 405,
+					diff: 10,
+					base: 400
+				},
+
+				input_values:{
+					rightf: 395,
+					leftf: 405,
+					diff: 10,
+					base: 400
+				},
+
+				ramps: [],
+				audio_blobs:{},
+
+				maxf:1000,
+				minf:0,
+				filecounter:0,
+				savecounter:0,
+				paused:false,
+				playing:false,
+				recording:false,
+				samplerate:44100,
+				stoptimeout:undefined
+			}
+		set $state.cordova_platform to window.cordova.platformId
+
+
+			if keys().includes('savecounter')
+				set $state.savecounter to get_item('savecounter') as Number
+			else
+				set $state.savecounter to 0
+			end
+			log 'eeee',$state.savecounter
+
+
+			make a (window.AudioContext) 
+			set $astate.ctx to it
+			
+
+			set #base-input's @min to $state.minf
+			set #base-input's @max to $state.maxf
+			set #base-slider's @min to $state.minf
+			set #base-slider's @max to $state.maxf
+			set #base-input's value to $state.initial_values.base
+			set #base-input's @pvalue to $state.initial_values.base
+			set #base-slider's value to $state.initial_values.base
+
+			set #rightf-input's @min to $state.minf
+			set #rightf-input's @max to $state.maxf
+			set #rightf-slider's @min to $state.minf
+			set #rightf-slider's @max to $state.maxf
+			set #rightf-input's value to $state.initial_values.rightf
+			set #rightf-slider's value to $state.initial_values.rightf
+
+			set #leftf-input's @min to $state.minf
+			set #leftf-input's @max to $state.maxf
+			set #leftf-slider's @min to $state.minf
+			set #leftf-slider's @max to $state.maxf
+			set #leftf-input's value to $state.initial_values.leftf
+			set #leftf-slider's value to $state.initial_values.leftf
+
+			set :diffmax to diffmax($state.initial_values.base,$state.maxf)
+			set #diff-slider's @max to :diffmax
+			set #diff-input's @max to :diffmax
+			repeat in .rampfd
+				set its @max to :diffmax
+			end
+		set #diff-input's @min to 0
+		set #diff-slider's @min to 0
+		set #diff-input's value to $state.initial_values.diff
+		set #diff-slider's value to $state.initial_values.diff
+
+		set #diff-nav-input's @max to :diffmax
+		set #diff-nav-input's @min to 0
+		set #diff-nav-input's value to $state.initial_values.diff
+
+		set savename to "save"
+		set savename to savename + padnum($state.savecounter,4)
+		set #savename's value to savename 
+
+		swapallsvg(document)
+
+		set keysr to keys()
+		for c in beep! keysr
+			log c
+			set namefilds to c.split("@@@@")
+			if namefilds[0] === "fgsave"
+			set savename to namefilds[1] 
+			set item to get_item(c)
+			log item
+			set object to JSON.parse(item)
+			log object.initial_values
+			swapallsvg(appendsave(savename,object.desc,object.initial_values))
+			
+		end 
+		updateall()
+
+			
+	end
+
+	def appendsave(name,desc,initial_values)
+
+		put #t-save's innerHTML at the end of #save-table
+		set lastsave to last from #save-table
+
+		set (lastsave.querySelector('*.name-cell'))'s innerHTML to name
+		set (lastsave.querySelector('*.desc-cell'))'s innerHTML to desc
+		set (lastsave.querySelector('*.diff-cell'))'s innerHTML to initial_values.diff
+		set (lastsave.querySelector('*.left-wave-cell'))'s innerHTML to initial_values.leftf
+		set (lastsave.querySelector('*.right-wave-cell'))'s innerHTML to initial_values.rightf
+		return lastsave
+	end
+	def appendramp(diff,base,sec,min,id)
+		put #t-ramp's innerHTML at the end of #ramps
+		set ( <#ramps > li:last-of-type/>)'s @id to id
+
+		set <#ramps > li:last-of-type  .rampfd />'s value to diff
+		set <#ramps > li:last-of-type  .rampfb />'s value to base
+		set <#ramps > li:last-of-type  .rampts />'s value to sec
+		set <#ramps > li:last-of-type  .ramptm />'s value to min
+		return last <li/> in #ramps
+	end
+	def updateall()
+						send update to #diff-input
+						send update to #diff-nav-input
+						send update to #base-input
+						send update to #leftf-input
+						send update to #rightf-input
+	end
+	
+	def swapallsvg(scope)
+		set elements to <.svgswap/> in scope
+		js(elements)
+			elements.forEach(function(ele) {
+			swapsvg(ele)
+			});
+		end
+
+	end
+
+	def swapsvg(ele)
+			set classes to ele's @class
+			fetch `${(ele's src)}` as html
+			set svg to its firstChild
+			set ( svg's @class) to classes
+			remove .svgswap from svg
+			put svg after ele
+			remove ele
+
+	
+	end
+
+	def rampmaxtime()
+		 js($state) return ($state.ramps.reduce(function(p,c){ return (p&&p.time>c.time)?p:c})).time end
+		 return it 
+	end
+
+	def padnum (num, digits)
+		return ( ("0").repeat(Math.max(0,digits-((num as a String).length))) + num)
+	end
+
+	def startrecording()
+		set $astate.recstream to $astate.ctx.createMediaStreamDestination()
+
+		make a MediaRecorder from $astate.recstream.stream
+		set $astate.recorder to it 
+
+		$astate.recorder.start()
+		if $state.playing != false
+			$astate.merger.connect($astate.recstream)
+		end 
+	end
+
+	def filename(fc, leftf, rightf, ext)
+		return `${fc}-lf-${leftf}-rf-${rightf}-${ext}` 
+	end
+
+	def stoplistner(e)
+		addaudio(e.data)
+		set $astate.recorder to false
+		set $astate.recstream to false
+	end
+
+	def offline_done(e)
+		set wav to audioBufferToWav(e.renderedBuffer)
+		make a Blob from [wav] , {type:"audio/wav"}
+		set blob to it
+		addaudio(blob)
+	end
+
+	def addaudio(blob)
+		set type to blob.type
+		set ext to type.split(';')[0].split('/')[1]
+
+		increment $state.filecounter
+
+		set id to "blob" + Math.random()
+		set uri to URL.createObjectURL(blob)
+		set filename to filename($state.filecounter,$state.initial_values.leftf,$state.initial_values.rightf,ext)
+		put #t-audio's innerHTML at the end of #recordings
+		set rec_ele to <#recordings:last-child tr:last-of-type td > audio /> 
+		set rec_ele's src  to uri
+		set rec_ele's @id to id
+		set $state.audio_blobs[id] to {blob:blob,filename:filename,uri:uri}
+	end
+
+	def stoprecording()
+		$astate.recorder.addEventListener('dataavailable', stoplistner)
+		$astate.recorder.stop()
+	end
+
+	def download (uri, name)
+		set rand to "download" + (Math.random() as String)
+		append `<a id="${rand}" href="${uri}" download="${name}"></a>` to #hidden 
+
+
+		set t to  (#{rand}.click())
+		set t to  (#{rand}.remove())
+	end
+
+	def offline_play()
+		set right_osc to $astate.offline_ctx.createOscillator()
+		set left_osc to $astate.offline_ctx.createOscillator()
+		set merger to $astate.offline_ctx.createChannelMerger(2)
+
+		merger.connect($astate.offline_ctx.destination)
+
+		set left_osc's frequency's value to $state.initial_values.leftf
+		set right_osc's frequency's value to $state.initial_values.rightf
+
+
+		right_osc.connect(merger,0,1)
+		left_osc.connect(merger,0,0)
+
+		right_osc.start()
+		left_osc.start()
+
+		right_osc.frequency.linearRampToValueAtTime($state.initial_values.rightf,$astate.offline_ctx.currentTime)
+		left_osc.frequency.linearRampToValueAtTime($state.initial_values.leftf,$astate.offline_ctx.currentTime)
+
+		for ramp in $state.ramps
+			if $state.initial_values.rightf >= $state.initial_values.leftf
+				set rightf to ramp.base + (ramp.diff/2)
+				set leftf to ramp.base - (ramp.diff/2)
+
+			else 
+				set rightf to ramp.base - (ramp.diff/2)
+				set leftf to ramp.base + (ramp.diff/2)
+			end
+
+			right_osc.frequency.linearRampToValueAtTime(rightf,$astate.offline_ctx.currentTime+ramp.time)
+			left_osc.frequency.linearRampToValueAtTime(leftf,$astate.offline_ctx.currentTime+ramp.time)
+	end
+
+	def play()
+		set $astate.right_osc to $astate.ctx.createOscillator()
+		set $astate.left_osc to $astate.ctx.createOscillator()
+			set $astate.merger to $astate.ctx.createChannelMerger(2)
+		$astate.merger.connect($astate.ctx.destination)
+		if $astate.recstream != false
+			$astate.merger.connect($astate.recstream)
+		end
+		set $astate.left_osc's frequency's value to $state.initial_values.leftf
+		set $astate.right_osc's frequency's value to $state.initial_values.rightf
+		$astate.right_osc.start()
+		$astate.left_osc.start()
+		$astate.right_osc.connect($astate.merger,0,1)
+		$astate.left_osc.connect($astate.merger,0,0)
+
+
+		$astate.right_osc.frequency.linearRampToValueAtTime($state.initial_values.rightf,$astate.ctx.currentTime)
+		$astate.left_osc.frequency.linearRampToValueAtTime($state.initial_values.leftf,$astate.ctx.currentTime)
+
+		for ramp in $state.ramps
+			if $state.initial_values.rightf >= $state.initial_values.leftf
+				set rightf to ramp.base + (ramp.diff/2)
+				set leftf to ramp.base - (ramp.diff/2)
+
+			else 
+				set rightf to ramp.base - (ramp.diff/2)
+				set leftf to ramp.base + (ramp.diff/2)
+			end
+
+			$astate.right_osc.frequency.linearRampToValueAtTime(rightf,$astate.ctx.currentTime+ramp.time)
+			$astate.left_osc.frequency.linearRampToValueAtTime(leftf,$astate.ctx.currentTime+ramp.time)
+		end
+
+	end
+
+	def diffmax(base,maxf)
+		set :diffmax to (base) * 2
+		if :diffmax > maxf
+		set :diffmax to (maxf - base) *2
+		end
+		if :diffmax > 100
+			set :diffmax to 100
+		end
+		return :diffmax
+	end
+
+	def stop()
+		$astate.right_osc.stop()
+		$astate.left_osc.stop()
+	end
+
+	def pause()
+		$astate.ctx.suspend()
+	end
+
+	def resume()
+		$astate.ctx.resume()
+	end
+
+	def avrg(array)
+		set sum to 0
+		for v in array
+			increment sum by v
+		end
+		return sum/array.length
+	end
+	</script>
+	<body>
+		<nav id=nav>
+			<span id=play-timer _="install timer">
+							<img class="icon navicon svgswap" src="./play.svg"/>
+				<span class=min>
+					00
+				</span>
+				:
+				<span class=sec>
+					00
+				</span>
+				:
+				<span class=mil>
+					000
+				</span>
+			</span>
+			<span id=rec-timer _="install timer">
+							<img class="recordicon icon navicon svgswap" src="./record.svg"/>
+				<span class=min>
+					00
+				</span>
+				:
+				<span class=sec>
+					00
+				</span>
+				:
+				<span class=mil>
+					000
+				</span>
+			</span>
+				<input step=.1 value=10 id=diff-nav-input type=number min=0 max=1000 _="
+					install inputlimits 
+					on input 
+						set $state.input_values.diff to my value as a Number
+						send update to #diff-input
+					
+					on update 
+						put $state.input_values.diff into my value 
+				">
+				<div id=updater _="
+					on start
+					log 'updator startod'
+						repeat until event pause
+							log 'loop'
+							set leftf to the value of $astate.left_osc's frequency
+							set rightf to the value of $astate.right_osc's frequency
+							set diff to  Math.abs(leftf - rightf).round(2)
+							set base to avrg([ leftf,rightf ])
+
+							set $state.input_values to {
+								leftf:leftf.round(2),
+								rightf:rightf.round(2),
+								base:base.round(2),
+								diff:diff.round(2)
+							}
+							log $state.input_values 
+						updateall()
+							wait 100
+						end
+					end
+					on stop
+						send pause to me
+						set $state.input_values to $state.initial_values
+						updateall()
+					end
+					
+					">
+				</div>
+
+
+		</nav>
+		<div id=navspacer>
+		</div>
+
+			<h1 class=pagetitle> Frequency generator</h1>
+			<br>
+
+		<input _='
+		on change
+			set key to "fgsave@@@@" + my value
+			if beep! get_item(key) != undefined
+				call alert("Save exists")
+				set savename to "save"
+				set savename to savename + padnum($state.savecounter,4)
+				put savename into my value
+				       
+			end
+		end
+
+		' id=savename>
+
+		<button id="export-button" disabled="" class="iconbutton" _="
+			on click
+				set sec to rampmaxtime()
+				make a OfflineAudioContext from 2,sec*($state.samplerate),$state.samplerate
+				set its oncomplete to offline_done
+				set $astate.offline_ctx to it
+				offline_play()
+				$astate.offline_ctx.startRendering()
+			end
+					">
+			<img class="icon svgswap" src="./export.svg"/>
+		</button>
+		<button data-icon=play class=iconbutton _="
+			on click 
+				if not $state.playing then
+					set $state.initial_values to $state.input_values
+					play()
+					if $state.ramps.length != 0 and #stop-at-end's checked
+						js($state)
+							let maxtime=rampmaxtime()
+							$state.stoptimeout=setTimeout(function(){
+							_hyperscript.evaluate('send click to #stop-button')
+							}
+							,maxtime*1000);
+						end
+					end
+					send start to #play-timer
+					if $state.ramps.length != 0
+						send start to #updater
+					end
+
+					add .blink to <#play-timer .icon/>
+					set $state.playing to true 
+					set $state.playing to true 
+					set @data-icon to 'pause' 
+					remove @disabled from next <button/>
+				else if $state.paused then 
+					if $state.ramps.length != 0
+						send start to #updater
+					end
+					resume()
+					send resume to #play-timer
+					add .blink to <#play-timer .icon/>
+					set $state.paused to false 
+					set @data-icon to 'pause' 
+				else
+					pause()
+					if $state.ramps.length != 0
+						send pause to #updater
+					end
+					send pause to #play-timer
+					remove .blink from <#play-timer .icon/>
+					set $state.paused to true 
+					set @data-icon to 'resume' 
+				end
+		">
+			<img class="icon play svgswap" src="./play.svg"/>
+			<img class="icon resume svgswap" src="./resume.svg"/>
+			<img class="icon pause svgswap" src="./pause.svg"/>
+		</button>
+		<button data-icon=stop disabled="" class=iconbutton id=stop-button _="
+			on click 
+				stop() 
+				$astate.ctx.resume()
+				clearTimeout($state.stoptimeout)
+				send stop to #updater
+				send stop to #play-timer
+				remove .blink from <#play-timer .icon/>
+				set $state.playing to false 
+				set $state.paused to false 
+				set ((previous <button/>)'s @data-icon) to 'play'
+				add @disabled to me 
+		">
+							<img class="icon stop svgswap" src="./stop.svg"/>
+			</button>
+		<button data-icon=record class=iconbutton _="
+			on click 
+				if not $state.recording
+					startrecording()
+					send start to #rec-timer
+					add .blink to <#rec-timer .icon/>
+								
+					set @data-icon to 'stoprec' 
+					set $state.recording to true
+				else
+					stoprecording()
+					send stop to #rec-timer
+					remove .blink from <#rec-timer .icon/>
+					set @data-icon to 'record' 
+					set $state.recording to false
+				end
+		">
+			<img class="icon stoprec stoprecicon svgswap" src="./stop.svg"/>
+			<img class="icon record recordicon svgswap" src="./record.svg"/>
+		</button>
+			<button class=iconbutton _="
+				on click
+					increment $state.savecounter
+
+					NativeStorage.setItem('savecounter',$state.savecounter as String , console.log,console.log)
+
+					set value to JSON.stringify({name:#savename.value,desc:'Description',ramps:$state.ramps,initial_values:$state.input_values})
+
+					log value
+					set key to 'fgsave@@@@' + #savename.value
+					log key
+
+					NativeStorage.setItem(key,value, console.log,console.log)
+
+					show #saved-confs-label
+					appendsave(#savename.value,'Description',$state.initial_values)
+
+
+					set savename to 'save'
+					set savename to savename + padnum($state.savecounter,4)
+					set #savename.value to savename
+				end
+				">
+						<img class="icon svgswap" src="./save.svg">
+			</button>
+		<br>
+
+		<p> Stop at the end of last ramp: </p>
+		<label class=toggle>
+			<input checked id=stop-at-end type=checkbox>
+			<span class=toggledot></span>
+		</label> 
+			<br>
+			<div>
+				<label>
+					<p> Frequency diffrence </p>
+					<input _=" install range " step=.1 id=diff-slider type=range>
+				</label>
+				<input step=.1 value=10 id=diff-input type=number min=0 max=1000 _="
+					install inputlimits 
+
+					on update 
+						put $state.input_values.diff into my value 
+						put $state.input_values.diff into (previous <input/>)'s value
+						send update to (previous <input/>)
+					end
+
+					on input
+						set $state.input_values.diff to my value as a Number
+						put my value into (previous <input/>)'s value
+						send update to (previous <input/>)
+
+						set $state.input_values.base to #base-input's value as a Number
+
+
+						if $state.input_values.rightf >= $state.input_values.leftf
+							set $state.input_values.rightf to (($state.input_values.base+($state.input_values.diff/2)).round(4)).round(4)
+							set $state.input_values.leftf to (($state.input_values.base-($state.input_values.diff/2)).round(4)).round(4)
+						else
+							set $state.input_values.rightf to (($state.input_values.base-($state.input_values.diff/2)).round(4)).round(4)
+							set $state.input_values.leftf to (($state.input_values.base+($state.input_values.diff/2)).round(4)).round(4)
+						end
+
+						send update to #leftf-input
+						send update to #rightf-input
+						send update to #diff-nav-input
+					end
+
+
+
+
+
+
+					on start
+					log 'diffstart'
+						repeat until event pause
+							set left_value to the beep! value of $astate.left_osc's frequency
+							set right_value to the value of $astate.right_osc's frequency
+							set diff to  Math.abs(left_value - right_value).round(2)
+							put diff into my value
+						log diff
+							send update to me
+							wait 100
+						end
+					end
+					on stop
+						send pause to me
+						put $state.input_values.diff into my value 
+					end
+				">
+				<div class=increments>
+					<button _="install increment(up:true)">+</button>
+					<button _="install increment(up:false)">-</button>
+				</div>
+				<label>
+					<p> Carrier frequency</p>
+					<input _=" install range " id=base-slider type=range>
+
+				</label>
+				<input step=.1 id=base-input type=number _="
+					install inputlimits
+					on update 
+						put $state.input_values.base into my value 
+						put $state.input_values.base into (previous <input/>)'s value
+						send update to (previous <input/>)
+					end
+
+					on change
+						set $state.input_values.base to my value as a Number
+						put my value into (previous <input/>)'s value
+						send update to (previous <input/>)
+
+						set $state.input_values.diff to #diff-input's value as a Number
+						set :rightf to (($state.input_values.base-($state.input_values.diff/2)).round(4)).round(4)
+						set :leftf to (($state.input_values.base+($state.input_values.diff/2)).round(4)).round(4)
+						if :rightf <= $state.maxf and :rightf >= $state.minf and :leftf <= $state.maxf and :leftf >= $state.minf
+						then
+							set @pvalue to my value 
+							set :diffmax to diffmax(my value,$state.maxf)
+							set #diff-slider's @max to :diffmax
+							set #diff-input's @max to :diffmax
+							repeat in .rampfd
+								set its max to :diffmax
+							end
+							send update to #diff-input
+
+							set $state.input_values.rightf to :rightf
+							set $state.input_values.leftf to :leftf
+							send update to #leftf-input
+							send update to #rightf-input
+						else
+							set my value to @pvalue
+							set (previous <input/>)'s value to @pvalue
+							send update to (previous <input/>)
+							halt
+						end
+				">
+				<div class=increments>
+					<button _="install increment(up:true)">+</button>
+					<button _="install increment(up:false)">-</button>
+				</div>
+			</div>
+			<div class=freqrange>
+				<label>
+					<p> Left frequency </p>
+					<input _=" install range " step=.1 id=leftf-slider type=range>
+				</label>
+				<input step=.1 id=leftf-input type=number _="
+					install inputlimits 
+					on update 
+						put $state.input_values.leftf into my value 
+						put $state.input_values.leftf into (previous <input/>)'s value
+						send update to (previous <input/>)
+					end
+
+					on input 
+						set $state.input_values.leftf to my value as a Number
+						put my value into (previous <input/>)'s value
+						send update to (previous <input/>)
+
+						set $state.input_values.diff to Math.abs((my value as a Number) - (#rightf-input's value as a Number)).round(4)
+						set $state.input_values.base to avrg([ (my value as a Number) , (#rightf-input's value as a Number) ]).round(4)
+
+						set :diffmax to diffmax($state.input_values.base,$state.maxf)
+						set #diff-slider's @max to :diffmax
+						set #diff-input's @max to :diffmax
+							repeat in .rampfd
+								set its max to :diffmax
+							end
+
+						send update to #diff-input 
+						send update to #base-input 
+				">
+				<div class=increments>
+					<button _="install increment(up:true)">+</button>
+					<button _="install increment(up:false)">-</button>
+				</div>
+			</div>
+			<div class=freqrange>
+				<label>
+					<p> Right frequency</p>
+					<input _="install range" step=.1 id=rightf-slider type=range>
+				</label>
+				<input step=.1 id=rightf-input type=number _="
+					install inputlimits 
+					on update 
+						put $state.input_values.rightf into my value 
+						put $state.input_values.rightf into (previous <input/>)'s value
+						send update to (previous <input/>)
+					end
+
+					on input 
+						set $state.input_values.rightf to my value as a Number
+						put my value into (previous <input/>)'s value
+						send update to (previous <input/>)
+
+						set $state.input_values.diff to Math.abs((my value as a Number) - (#leftf-input's value as a Number)).round(4)
+						set $state.input_values.base to avrg([ (my value as a Number) , (#leftf-input's value as a Number) ]).round(4)
+
+						set :diffmax to diffmax($state.input_values.base,$state.maxf)
+						set #diff-slider's @max to :diffmax
+						set #diff-input's @max to :diffmax
+							repeat in .rampfd
+								set its max to :diffmax
+							end
+
+						send update to #diff-input 
+						send update to #base-input 
+				">
+				<div class=increments>
+					<button _="install increment(up:true)">+</button>
+					<button _="install increment(up:false)">-</button>
+				</div>
+			</div>
+			<button _="
+				on click 
+					set rampsec to 0
+					set rampmin to 0
+					set rampfd to 0
+					set rampfb to 0
+
+					if #ramps's children's length == 0
+						set rampfd to $state.input_values.diff
+						set rampfb to $state.input_values.base
+					else 
+						set rampfd to   <#ramps > li:last-of-type  .rampfd  />'s value
+						set rampfb to   <#ramps > li:last-of-type  .rampfb  />'s value
+						set rampsec to <#ramps > li:last-of-type  .rampts />'s value
+						set rampmin to <#ramps > li:last-of-type  .ramptm />'s value
+					end
+
+					set id to 'ramp' + (Math.random() as a String)
+					appendramp(rampfd,rampfb,rampsec,rampmin,id)
+					show #ramp-label
+				end
+			">Add ramp</button>
+			<br>
+
+			<label id=ramp-label style="display:none;"> Ramps: </label>
+			<ul id=ramps></ul>
+
+			<div class=tablec>
+				<table >
+					<tbody id="recordings">
+					</tbody>
+				</table>
+			</div>
+
+			<br>
+
+			<label id=saved-confs-label style="display:none;">Saved configurations:</label>
+			<br>
+			<table id=save-table></table>
+
+			<br>
+			<br>
+			<br>
+			<hr>
+	</body>
+</html>

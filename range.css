@@ -1,0 +1,72 @@
+:root {
+}
+
+/*********** Baseline, reset styles ***********/
+input[type="range"] {
+	-webkit-appearance: none;
+	appearance: none;
+	background: transparent;
+	cursor: pointer;
+	width: var(--track-width);
+}
+
+/* Removes default focus */
+input[type="range"]:focus {
+	outline: none;
+}
+
+/*********** Chrome, Safari, Opera and Edge (post Chromium) styles ***********/
+/* slider track */
+input[type="range"]::-webkit-slider-runnable-track {
+	--percent: calc( ((var(--val) - var(--min)) / (var(--max) - var(--min))) * 100% ) ;
+	background:linear-gradient(to right,var(--track-progress-color) var(--percent),var(--track-color) var(--percent) );
+
+	background-color: var(--track-color);
+	border-radius: var(--track-border-radius);
+	height: var(--track-height);
+}
+
+/* slider thumb */
+input[type="range"]::-webkit-slider-thumb {
+	-webkit-appearance: none; /* Override default look */
+	appearance: none;
+	margin-top: calc(
+	(var(--track-height) / 2) - (var(--thumb-height) / 2)
+	); /* Centers the thumb on the track */
+
+	/*Customizable styles*/
+	background-color: var(--thumb-color);
+	border-radius: var(--thumb-border-radius);
+	height: var(--thumb-height);
+	width: var(--thumb-width);
+}
+
+input[type="range"]:focus::-webkit-slider-thumb {
+	outline: 3px solid var(--thumb-color);
+	outline-offset: 0.125rem;
+}
+
+/*********** Firefox styles ***********/
+/* slider track */
+input[type="range"]::-moz-range-track {
+	--percent: calc( ((var(--val) - var(--min)) / (var(--max) - var(--min))) * 100% );
+	background:linear-gradient(to right,var(--track-progress-color) var(--percent),var(--track-color) var(--percent) );
+	background-color: var(--track-color);
+	border-radius: var(--track-border-radius);
+	height: var(--track-height);
+}
+
+
+/* slider thumb */
+input[type="range"]::-moz-range-thumb {
+	background-color: var(--thumb-color);
+	border: none; /*Removes extra border that FF applies*/
+	border-radius: var(--thumb-border-radius);
+	height: var(--thumb-height);
+	width: var(--thumb-width);
+}
+
+input[type="range"]:focus::-moz-range-thumb {
+	outline: 3px solid var(--thumb-color);
+	outline-offset: 0.125rem;
+}
